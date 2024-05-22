@@ -1,8 +1,8 @@
 #include "Server.h"
 
-std::vector<SOCKET> Connections;
-std::vector<Room>	Rooms;
-int					clientCounter = 0;
+std::vector<SOCKET> Connections;// Vector to store client connections
+std::vector<Room>	Rooms; // Vector to store chat rooms
+int	clientCounter = 0;// Counter for connected clients
 
 using namespace std;
 void setColor(const char* color) {
@@ -299,19 +299,36 @@ bool handleRegister(int index, std::string message) {
 	std::string login = credentials[0];
 	std::string password = credentials[1];
 
-	std::ofstream userFile("users.txt", std::ios::app);
+	std::ifstream userFile("users.txt");
 	if (!userFile.is_open()) {
 		sendWarningMessage(index, "Failed to open user file.");
 		return false;
 	}
 
-	userFile << login << " " << password << "\n";
+	std::string line;
+	while (std::getline(userFile, line)) {
+		std::vector<std::string> storedCredentials = stringSplit(line, " ");
+		if (storedCredentials.size() >= 1 && storedCredentials[0] == login) {
+			sendWarningMessage(index, "This login already exists.");
+			userFile.close();
+			return false;
+		}
+	}
+
 	userFile.close();
+
+	std::ofstream userFileOut("users.txt", std::ios::app);
+	if (!userFileOut.is_open()) {
+		sendWarningMessage(index, "Failed to open user file.");
+		return false;
+	}
+
+	userFileOut << login << " " << password << "\n";
+	userFileOut.close();
 
 	sendServerMessage(index, "Registration successful.");
 	return true;
 }
-
 bool handleLogin(int index, std::string message) {
 	std::vector<std::string> credentials = stringSplit(message, " ");
 	if (credentials.size() != 2) {
@@ -341,13 +358,24 @@ bool handleLogin(int index, std::string message) {
 
 	if (loginSuccess) {
 		sendServerMessage(index, "Login successful.");
+		// ѕосле успешного входа, добавл€ем пользовател€ в комнату, если он указал правильные учетные данные.
+
+		for (int i = 0; i < Rooms.size(); i++) {
+			if (Rooms[i].name == "default") { // »м€ комнаты, в которую добавл€ем пользовател€
+				Rooms[i].users.push_back(index);
+				break;
+			}
+		}
 	}
 	else {
 		sendWarningMessage(index, "Invalid login or password.");
 	}
+	
+	
 
 	return loginSuccess;
 }
+
 
 
 
@@ -405,13 +433,35 @@ void handleChatMessage(int index) {
 	printf("%20s | Message from Client #%d: %s\n", getCurrentTime().c_str(), index, message.c_str());
 	setColor("white");
 
-	Packet packetType = pChatMessage;
-	for (int i = 0; i < Connections.size(); i++) {
-		if (Connections[i] != INVALID_SOCKET) {
-			send(Connections[i], (char*)&packetType, sizeof(Packet), NULL);
-			send(Connections[i], (char*)&msgSize, sizeof(int), NULL);
-			send(Connections[i], message.c_str(), msgSize, NULL);
+	// Check if the user is in any room
+	bool found = false;
+	for (int i = 0; i < Rooms.size(); i++) {
+		for (int j = 0; j < Rooms[i].users.size(); j++) {
+			if (Rooms[i].users[j] == index) {
+				// If the user is in a room, we send a message to all users in that room				
+				Packet packetType = pChatMessage;
+				for (int k = 0; k < Rooms[i].users.size(); k++) {
+					if (Connections[Rooms[i].users[k]] != INVALID_SOCKET) {
+						send(Connections[Rooms[i].users[k]], (char*)&packetType, sizeof(Packet), NULL);
+						send(Connections[Rooms[i].users[k]], (char*)&msgSize, sizeof(int), NULL);
+						send(Connections[Rooms[i].users[k]], message.c_str(), msgSize, NULL);
+					}
+				}
+				found = true;
+				break;
+			}
 		}
+		if (found) {
+			break;
+		}
+	}
+
+	if (!found) {
+		// If the user is not in any room, we send him a message about it
+		std::string errorMessage = "You are not in any room yet. This message wasn't delivered to anyone else";
+		Packet packetType = pServerMessage;
+		printf("%20s | Sending message: user#%d -> NULL\n", getCurrentTime().c_str(), index);
+		sendPacket(&Connections[index], &packetType, &errorMessage);
 	}
 }
 
@@ -463,7 +513,7 @@ void clientHandler(int index) {
 			handleLogin(index, loginMessage);
 			break;
 		}
-				   // ƒобавьте сюда обработку других типов пакетов...
+				   
 		}
 	}
 

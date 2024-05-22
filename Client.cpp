@@ -49,12 +49,12 @@ std::vector<std::string> stringSplit(std::string str, std::string delimiter) {
 
     while ((posEnd = str.find(delimiter, posStart)) != std::string::npos) {
         std::string token = str.substr(posStart, posEnd - posStart);
-        if (!token.empty()) // Игнорируем пустые подстроки
+        if (!token.empty()) // Ignoring empty substrings
             splitted.push_back(token);
         posStart = posEnd + delimiter.length();
     }
     std::string lastToken = str.substr(posStart);
-    if (!lastToken.empty()) // Игнорируем последнюю пустую подстроку
+    if (!lastToken.empty()) // Ignoring the last empty substring
         splitted.push_back(lastToken);
 
     return splitted;
@@ -75,7 +75,7 @@ void addTimeNickname(std::string* word, std::string* message) {
         printf("%s\n\n", time.c_str());
         *message += "\n" + time;
         *message += ", " + nickname;
-        // Сохраняем никнейм в файл сразу после его изменения
+        // Save the nickname to a file immediately after changing it
         saveNicknameToFile(nickname);
     }
     return;
@@ -131,7 +131,7 @@ bool processInstructions(std::vector<std::string> splittedMessage) {
         setColor("white");
         return true;
     }
-    // Проверяем, залогинен ли пользователь перед выполнением команд !register и !login
+    // Check if the user is logged in before executing the !register and !login commands
     if (((splittedMessage[0] == "!register" && splittedMessage.size() != 3) || (splittedMessage[0] == "!login" && splittedMessage.size() != 3)) && (login.empty() || password.empty())) {
         setColor("red");
         printf("You need to log in first.\n\n");
@@ -156,7 +156,7 @@ bool processInstructions(std::vector<std::string> splittedMessage) {
         return true;
     }
 
-    // проверка на зарегистрированность
+    // check for registration
     if (login.empty() || password.empty()) {
         if (splittedMessage[0] != "!help" && splittedMessage[0] != "!register" && splittedMessage[0] != "!login") {
             setColor("red");
@@ -198,7 +198,7 @@ bool processInstructions(std::vector<std::string> splittedMessage) {
         setColor("blue");
         printf("You are changing nickname: \'%s\' -> \'%s\'\n\n", nickname.c_str(), splittedMessage[1].c_str());
         nickname = splittedMessage[1];
-        // Сохраняем никнейм в файл после его изменения
+        // Save the nickname to a file after changing it
         saveNicknameToFile(nickname);
         setColor("white");
         return true;
@@ -301,7 +301,7 @@ void clientHandler() {
 int main(int argc, char* argv[]) {
     std::string message;
 
-    // Загрузка никнейма из файла
+    // Nickname loading from the file
     nickname = loadNicknameFromFile();
 
     if (!connectToServer("127.0.0.1", 1111))
@@ -322,7 +322,7 @@ int main(int argc, char* argv[]) {
 
         addTimeNickname(&splittedMessage[0], &message);
 
-        // Сохранение никнейма в файл при его изменении
+        // Saving a nickname to a file when it is changed
         saveNicknameToFile(nickname);
 
         Packet packetType = pChatMessage;
