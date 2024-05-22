@@ -48,13 +48,18 @@ std::vector<std::string> stringSplit(std::string str, std::string delimiter) {
     std::vector<std::string> splitted;
 
     while ((posEnd = str.find(delimiter, posStart)) != std::string::npos) {
-        splitted.push_back(str.substr(posStart, posEnd - posStart));
+        std::string token = str.substr(posStart, posEnd - posStart);
+        if (!token.empty()) // Игнорируем пустые подстроки
+            splitted.push_back(token);
         posStart = posEnd + delimiter.length();
     }
-    splitted.push_back(str.substr(posStart));
+    std::string lastToken = str.substr(posStart);
+    if (!lastToken.empty()) // Игнорируем последнюю пустую подстроку
+        splitted.push_back(lastToken);
 
     return splitted;
 }
+
 
 std::string getCurrentTime() {
     std::time_t msgTime = std::time(0);

@@ -121,113 +121,128 @@ void MessageHandler(int userID, std::string msg, int* roomID) {
 	}
 
 	if (splittedMessage[0] == "!create" && splittedMessage.size() == 3) {
-		message = "You are creating room \'" + splittedMessage[1] + "\'";
-		bool nameExists = false;
+		if (splittedMessage[1].empty() || splittedMessage[2].empty()) {
+			setColor("blue");
+			printf("%20s | Creating room: user#%d -> empty room name or password\n", getCurrentTime().c_str(), userID);
+			setColor("white");
+			message = "Empty room name or password";
+			Packet packetType = pWarningMessage;
+			sendPacket(&Connections[userID], &packetType, &message);
+			return;
+		}
 
-		for (auto it = Rooms.begin(); it != Rooms.end() && !nameExists; it++) {
+		bool nameExists = false;
+		for (auto it = Rooms.begin(); it != Rooms.end(); it++) {
 			if ((*it).name == splittedMessage[1]) {
-				message = "This room name is alredy exists";
 				nameExists = true;
+				break;
 			}
 		}
-		setColor("blue");
-		if (!nameExists) {
-			Rooms.push_back(Room(splittedMessage[1], splittedMessage[2]));
-			printf("%20s | Creating room: user#%d -> \'%s\'\n", getCurrentTime().c_str(), userID, splittedMessage[1].c_str());
+		if (nameExists) {
+			setColor("blue");
+			printf("%20s | Creating room: user#%d -> room name already exists\n", getCurrentTime().c_str(), userID);
+			setColor("white");
+			message = "Room name already exists";
+			Packet packetType = pWarningMessage;
+			sendPacket(&Connections[userID], &packetType, &message);
+			return;
 		}
-		else
-			printf("%20s | Creating room: user#%d -> wrong parameters\n", getCurrentTime().c_str(), userID);
-		setColor("white");
 
+		Rooms.push_back(Room(splittedMessage[1], splittedMessage[2]));
+		setColor("blue");
+		printf("%20s | Creating room: user#%d -> \'%s\'\n", getCurrentTime().c_str(), userID, splittedMessage[1].c_str());
+		setColor("white");
+		message = "You are creating room \'" + splittedMessage[1] + "\'";
 		Packet packetType = pServerMessage;
 		sendPacket(&Connections[userID], &packetType, &message);
 		return;
 	}
 
-	if (splittedMessage[0] == "!create" && splittedMessage.size() != 3) {
-		setColor("blue");
-		printf("%20s | Creating room: user#%d -> wrong number of parameters\n", getCurrentTime().c_str(), userID);
-		setColor("white");
-		message = "Wrong number of parameters for the command \'!create\'";
-		Packet packetType = pWarningMessage;
-		sendPacket(&Connections[userID], &packetType, &message);
-		return;
-	}
 
 	if (splittedMessage[0] == "!remove" && splittedMessage.size() == 3) {
-		Packet packetType = pServerMessage;
-		message = "You are removing room \'" + splittedMessage[1] + "\'";
+		if (splittedMessage[1].empty() || splittedMessage[2].empty()) {
+			setColor("blue");
+			printf("%20s | Removing room: user#%d -> empty room name or password\n", getCurrentTime().c_str(), userID);
+			setColor("white");
+			message = "Empty room name or password";
+			Packet packetType = pWarningMessage;
+			sendPacket(&Connections[userID], &packetType, &message);
+			return;
+		}
+
 		bool roomExists = false;
-		for (auto it = Rooms.begin(); it != Rooms.end() && !roomExists; it++) {
+		for (auto it = Rooms.begin(); it != Rooms.end(); it++) {
 			if ((*it).name == splittedMessage[1]) {
 				roomExists = true;
 				if ((*it).password == splittedMessage[2]) {
 					Rooms.erase(it);
-					break;
+					setColor("blue");
+					printf("%20s | Removing room: user#%d -> \'%s\'\n", getCurrentTime().c_str(), userID, splittedMessage[1].c_str());
+					setColor("white");
+					message = "You are removing room \'" + splittedMessage[1] + "\'";
+					Packet packetType = pServerMessage;
+					sendPacket(&Connections[userID], &packetType, &message);
 				}
 				else {
-					packetType = pWarningMessage;
+					setColor("blue");
+					printf("%20s | Removing room: user#%d -> wrong room password\n", getCurrentTime().c_str(), userID);
+					setColor("white");
 					message = "Wrong room password";
+					Packet packetType = pWarningMessage;
+					sendPacket(&Connections[userID], &packetType, &message);
 				}
+				break;
 			}
 		}
 		if (!roomExists) {
-			packetType = pWarningMessage;
+			setColor("blue");
+			printf("%20s | Removing room: user#%d -> wrong room name\n", getCurrentTime().c_str(), userID);
+			setColor("white");
 			message = "Wrong room name";
+			Packet packetType = pWarningMessage;
+			sendPacket(&Connections[userID], &packetType, &message);
 		}
-		setColor("blue");
-		if (message != "You are removing room \'" + splittedMessage[1] + "\'")
-			printf("%20s | Removing room: user#%d -> wrong parameters\n", getCurrentTime().c_str(), userID);
-		else
-			printf("%20s | Removing room: user#%d -> \'%s\'\n", getCurrentTime().c_str(), userID, splittedMessage[1].c_str());
-		setColor("white");
-		sendPacket(&Connections[userID], &packetType, &message);
 		return;
 	}
 
-	if (splittedMessage[0] == "!remove" && splittedMessage.size() != 3) {
-		setColor("blue");
-		printf("%20s | Removing room: user#%d -> wrong number of parameters\n", getCurrentTime().c_str(), userID);
-		setColor("white");
-		message = "Wrong number of parameters for the command \'!remove\'";
-		Packet packetType = pWarningMessage;
-		sendPacket(&Connections[userID], &packetType, &message);
-		return;
-	}
 
 	if (splittedMessage[0] == "!open" && splittedMessage.size() == 3) {
-		message = "You are opening room \'" + splittedMessage[1] + "\'";
+		if (splittedMessage[1].empty() || splittedMessage[2].empty()) {
+			setColor("blue");
+			printf("%20s | Opening room: user#%d -> empty room name or password\n", getCurrentTime().c_str(), userID);
+			setColor("white");
+			message = "Empty room name or password";
+			Packet packetType = pWarningMessage;
+			sendPacket(&Connections[userID], &packetType, &message);
+			return;
+		}
+
 		bool validData = false;
-		for (int i = 0; i < Rooms.size() && !validData; i++) {
+		for (int i = 0; i < Rooms.size(); i++) {
 			if (Rooms[i].name == splittedMessage[1] && Rooms[i].password == splittedMessage[2]) {
 				Rooms[i].users.push_back(userID);
 				validData = true;
 				*roomID = i;
+				setColor("blue");
+				printf("%20s | Opening room: user#%d -> \'%s\'\n", getCurrentTime().c_str(), userID, splittedMessage[1].c_str());
+				setColor("white");
+				message = "You are opening room \'" + splittedMessage[1] + "\'";
+				Packet packetType = pServerMessage;
+				sendPacket(&Connections[userID], &packetType, &message);
+				break;
 			}
 		}
-		setColor("blue");
 		if (!validData) {
+			setColor("blue");
+			printf("%20s | Opening room: user#%d -> wrong room name or password\n", getCurrentTime().c_str(), userID);
+			setColor("white");
 			message = "Wrong room name or password";
-			printf("%20s | Opening room: user#%d -> wrong parameters\n", getCurrentTime().c_str(), userID);
+			Packet packetType = pWarningMessage;
+			sendPacket(&Connections[userID], &packetType, &message);
 		}
-		else
-			printf("%20s | Opening room: user#%d -> \'%s\'\n", getCurrentTime().c_str(), userID, splittedMessage[1].c_str());
-		setColor("white");
-
-		Packet packetType = pServerMessage;
-		sendPacket(&Connections[userID], &packetType, &message);
 		return;
 	}
 
-	if (splittedMessage[0] == "!open" && splittedMessage.size() != 3) {
-		setColor("blue");
-		printf("%20s | Opening room: user#%d -> wrong number of parameters\n", getCurrentTime().c_str(), userID);
-		setColor("white");
-		message = "Wrong number of parameters for the command \'!open\'";
-		Packet packetType = pWarningMessage;
-		sendPacket(&Connections[userID], &packetType, &message);
-		return;
-	}
 
 	if (*roomID != -1) {
 		message = msg;
