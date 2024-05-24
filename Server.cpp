@@ -1,4 +1,4 @@
-#include "Server.h"
+п»ї#include "Server.h"
 
 std::vector<SOCKET> Connections;
 std::vector<Room>	Rooms;
@@ -48,7 +48,6 @@ void sendPacket(SOCKET* socket, Packet* packetType, std::string* message) {
 
 	return;
 }
-
 void MessageHandler(int userID, std::string msg, int* roomID) {
 	std::vector<std::string> splittedMessage = stringSplit(msg, " ");
 	std::string message;
@@ -141,6 +140,7 @@ void MessageHandler(int userID, std::string msg, int* roomID) {
 
 		Packet packetType = pServerMessage;
 		sendPacket(&Connections[userID], &packetType, &message);
+		saveRoomsToFile();
 		return;
 	}
 
@@ -182,6 +182,7 @@ void MessageHandler(int userID, std::string msg, int* roomID) {
 			printf("%20s | Removing room: user#%d -> \'%s\'\n", getCurrentTime().c_str(), userID, splittedMessage[1].c_str());
 		setColor("white");
 		sendPacket(&Connections[userID], &packetType, &message);
+		saveRoomsToFile();
 		return;
 	}
 
@@ -274,6 +275,31 @@ void sendWarningMessage(int index, const std::string& message) {
 	send(Connections[index], message.c_str(), messageSize, NULL);
 }
 
+// Function to save rooms to a file
+void saveRoomsToFile() {
+	std::ofstream outFile("rooms.txt");
+	for (const auto& room : Rooms) {
+		outFile << room.name << " " << room.password << "\n";
+	}
+	outFile.close();
+}
+
+// Function to load rooms from a file
+void loadRoomsFromFile() {
+	std::ifstream inFile("rooms.txt");
+	if (inFile.is_open()) {
+		Rooms.clear();
+		std::string roomName, roomPassword;
+		while (inFile >> roomName >> roomPassword) {
+			Room room;
+			room.name = roomName;
+			room.password = roomPassword;
+			Rooms.push_back(room);
+		}
+		inFile.close();
+	}
+}
+
 bool handleRegister(int index, std::string message) {
 	std::vector<std::string> credentials = stringSplit(message, " ");
 	if (credentials.size() != 2) {
@@ -284,18 +310,37 @@ bool handleRegister(int index, std::string message) {
 	std::string login = credentials[0];
 	std::string password = credentials[1];
 
-	std::ofstream userFile("users.txt", std::ios::app);
+	std::ifstream userFile("users.txt");
 	if (!userFile.is_open()) {
 		sendWarningMessage(index, "Failed to open user file.");
 		return false;
 	}
 
-	userFile << login << " " << password << "\n";
+	std::string line;
+	while (std::getline(userFile, line)) {
+		std::vector<std::string> storedCredentials = stringSplit(line, " ");
+		if (storedCredentials.size() >= 1 && storedCredentials[0] == login) {
+			sendWarningMessage(index, "This login already exists.");
+			userFile.close();
+			return false;
+		}
+	}
+
 	userFile.close();
+
+	std::ofstream userFileOut("users.txt", std::ios::app);
+	if (!userFileOut.is_open()) {
+		sendWarningMessage(index, "Failed to open user file.");
+		return false;
+	}
+
+	userFileOut << login << " " << password << "\n";
+	userFileOut.close();
 
 	sendServerMessage(index, "Registration successful.");
 	return true;
 }
+
 
 bool handleLogin(int index, std::string message) {
 	std::vector<std::string> credentials = stringSplit(message, " ");
@@ -359,9 +404,9 @@ bool processPacket(int index, Packet packetType, int* roomID) {
 	}
 	return true;
 }
-
 void handleChatMessage(int index) {
 	int msgSize;
+
 	if (recv(Connections[index], (char*)&msgSize, sizeof(int), NULL) <= 0) {
 		setColor("red");
 		printf("%20s | Client #%d has been disconnected (message size error)!\n", getCurrentTime().c_str(), index);
@@ -392,14 +437,13 @@ void handleChatMessage(int index) {
 
 	Packet packetType = pChatMessage;
 	for (int i = 0; i < Connections.size(); i++) {
-		if (Connections[i] != INVALID_SOCKET) {
+		if (i != index && Connections[i] != INVALID_SOCKET) { // Check if i is not the sender
 			send(Connections[i], (char*)&packetType, sizeof(Packet), NULL);
 			send(Connections[i], (char*)&msgSize, sizeof(int), NULL);
 			send(Connections[i], message.c_str(), msgSize, NULL);
 		}
 	}
 }
-
 void clientHandler(int index) {
 	Packet packetType;
 	int roomID = -1;
@@ -422,7 +466,7 @@ void clientHandler(int index) {
 
 		switch (packetType) {
 		case pChatMessage:
-			handleChatMessage(index);
+			processPacket(index, packetType, &roomID);
 			break;
 		case pRegister: {
 			std::string regMessage;
@@ -448,7 +492,7 @@ void clientHandler(int index) {
 			handleLogin(index, loginMessage);
 			break;
 		}
-				   // Добавьте сюда обработку других типов пакетов...
+				   // пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅ...
 		}
 	}
 
@@ -458,53 +502,13 @@ void clientHandler(int index) {
 		Connections.pop_back();
 	return;
 }
-/*
-void handleChatMessage(int index) {
-	int msgSize;
-	if (recv(Connections[index], (char*)&msgSize, sizeof(int), NULL) <= 0) {
-		setColor("red");
-		printf("%20s | Client #%d has been disconnected (message size error)!\n", getCurrentTime().c_str(), index);
-		setColor("white");
-		closesocket(Connections[index]);
-		Connections[index] = INVALID_SOCKET;
-		return;
-	}
-
-	char* msg = new char[msgSize + 1];
-	msg[msgSize] = '\0';
-	if (recv(Connections[index], msg, msgSize, NULL) <= 0) {
-		setColor("red");
-		printf("%20s | Client #%d has been disconnected (message content error)!\n", getCurrentTime().c_str(), index);
-		setColor("white");
-		closesocket(Connections[index]);
-		Connections[index] = INVALID_SOCKET;
-		delete[] msg;
-		return;
-	}
-
-	std::string message = msg;
-	delete[] msg;
-
-	setColor("green");
-	printf("%20s | Message from Client #%d: %s\n", getCurrentTime().c_str(), index, message.c_str());
-	setColor("white");
-
-	Packet packetType = pChatMessage;
-	for (int i = 0; i < Connections.size(); i++) {
-		if (Connections[i] != INVALID_SOCKET) {
-			send(Connections[i], (char*)&packetType, sizeof(Packet), NULL);
-			send(Connections[i], (char*)&msgSize, sizeof(int), NULL);
-			send(Connections[i], message.c_str(), msgSize, NULL);
-		}
-	}
-}
-*/
 
 void main(int argc, char* argv[]) {
 	setColor("green");
 	cout << "Server started successfully" << "\n";
 	cout << "The server is waiting for clients to connect" << "\n";
 	cout << "--------------------------------------------" << "\n";
+	loadRoomsFromFile();
 	WSAData wsaData;
 	if (WSAStartup(MAKEWORD(2, 1), &wsaData) != 0) {
 		WSACleanup();

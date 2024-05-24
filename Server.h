@@ -21,11 +21,15 @@ struct Room {
 		name = Name;
 		password = Password;
 	}
-
+	Room() = default;
 	std::string name;
 	std::string password;
 	std::vector<int> users;
 };
+
+extern std::vector<Room> Rooms;
+void saveRoomsToFile();
+void loadRoomsFromFile();
 
 enum Packet {
 	pChatMessage,
@@ -35,8 +39,17 @@ enum Packet {
 	pLogin          // Новый пакет для входа
 };
 
+void saveRoomsToFile();
+void loadRoomsFromFile();
+
+void loadMessageHistory(int userID, const std::string& login);
+
+void saveMessageHistory(const std::string& login, const std::string& message);
+
 bool handleRegister(SOCKET clientSocket, std::string message);
+
 bool handleLogin(SOCKET clientSocket, std::string message);
+
 void setColor(const char* color);
 
 std::vector<std::string> stringSplit(std::string str, std::string delimiter);
